@@ -1,18 +1,48 @@
+
+import customtkinter as ctk
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 from PIL import Image, ImageTk, ImageDraw
-import threading  
+import threading
 import datetime
 import os
 import sys
 import Scraping
 
+ctk.set_appearance_mode("system")
+ctk.set_default_color_theme("blue")
+
 # === PyInstaller-friendly path ===
+
+
 def resource_path(relative_path):
-    """Retourne le chemin absolu vers le fichier (compatible PyInstaller)"""
     if getattr(sys, 'frozen', False):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
+
+
+# === Options valides ===
+choix_possibles = [
+    "Suivi des imputations non soumises",
+    "Suivi du TACE",
+    "Suivi des réestimations non soumises",
+    "Check imputations"
+]
+
+llast_value = ""
+
+
+def filtrer_options(event):
+    global last_value
+    current_text = combo_var.get()
+    if current_text == last_value:
+        return
+    last_value = current_text
+
+    filtered = [
+        option for option in choix_possibles if current_text.lower() in option.lower()]
+    combo['values'] = filtered if filtered else choix_possibles
+
 
 def lancer_script(choix, mois, annee):
     try:
@@ -33,50 +63,53 @@ def lancer_script(choix, mois, annee):
 
         if not chemin_fichier or chemin_fichier == "non":
             messagebox.showerror(
-                "Échec",
-                "❌ Le programme n’a pas abouti.\n\nAucun fichier n’a été généré ou enregistré.\nMerci de vérifier les données et de réessayer."
-            )
+                "Échec", "❌ Aucun fichier n'a été généré. Vérifiez les données.")
             return
 
         messagebox.showinfo(
-            "Succès",
-            f"✅ Le programme s’est terminé avec succès !\n\n📄 Fichier généré :\n{chemin_fichier}"
-        )
+            "Succès", f"✅ Succès !\n\n📄 Fichier : {chemin_fichier}")
 
     except Exception as e:
         messagebox.showerror("Erreur", f"❌ Une erreur est survenue :\n{e}")
 
+
 def executer():
-    choix = combo.get()
+    choix = combo_var.get()
     mois = mois_var.get()
     annee = annee_var.get()
 
-    if not choix:
-        messagebox.showwarning("Attention", "Veuillez choisir une action.")
+    if choix not in choix_possibles:
+        messagebox.showwarning(
+            "Attention", "Choix invalide. Veuillez sélectionner une option valide.")
         return
 
     if choix != "Check imputations" and (not mois or not annee):
-        messagebox.showwarning("Attention", "Veuillez remplir le mois et l’année.")
+        messagebox.showwarning(
+            "Attention", "Veuillez remplir le mois et l'année.")
         return
 
-    threading.Thread(target=lancer_script, args=(choix, mois, annee), daemon=True).start()
+    threading.Thread(target=lancer_script, args=(
+        choix, mois, annee), daemon=True).start()
 
-# === Interface graphique ===
-root = tk.Tk()
+
+# === Fenêtre principale ===
+root = ctk.CTk()
 root.title("Update clôture details")
 
-# ➕ Centrage
-w, h = 450, 300
-ws, hs = root.winfo_screenwidth(), root.winfo_screenheight()
-x = (ws // 2) - (w // 2)
-y = (hs // 2) - (h // 2)
-root.geometry(f"{w}x{h}+{x}+{y}")
+# Centrer la fenêtre à l'écran
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+x = int((screen_width / 2) - (520 / 2))
+y = int((screen_height / 2) - (370 / 2))
+root.geometry(f"520x370+{x}+{y}")
 root.resizable(False, False)
 
-# === Image de fond ===
+# === Image de fond avec overlay ===
+w, h = 520, 370
 background_path = resource_path("background.jpg")
 if not os.path.exists(background_path):
-    messagebox.showerror("Erreur", f"Image de fond introuvable : {background_path}")
+    messagebox.showerror(
+        "Erreur", f"Image de fond introuvable : {background_path}")
     root.destroy()
     exit()
 
@@ -86,65 +119,49 @@ except AttributeError:
     resample = Image.LANCZOS
 
 bg_image = Image.open(background_path).resize((w, h), resample)
-
-# Crée une image avec un rectangle blanc transparent au centre
 overlay = Image.new("RGBA", bg_image.size)
 draw = ImageDraw.Draw(overlay)
-draw.rounded_rectangle([(50, 50), (400, 250)], radius=15, fill=(255, 255, 255, 210))
+draw.rounded_rectangle([(40, 40), (480, 330)],
+                       radius=25, fill=(245, 245, 245, 230))
 combined = Image.alpha_composite(bg_image.convert("RGBA"), overlay)
-
 bg_photo = ImageTk.PhotoImage(combined)
 
-canvas = tk.Canvas(root, width=w, height=h, highlightthickness=0)
-canvas.pack()
-canvas.create_image(0, 0, anchor="nw", image=bg_photo)
+bg_label = ctk.CTkLabel(master=root, image=bg_photo, text="")
+bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-# === Style
-style = ttk.Style()
-style.theme_use("clam")
-style.configure("TLabel", font=("Segoe UI", 10), background="#ffffff")
-style.configure("TCombobox", font=("Segoe UI", 10))
-style.configure("RoundedButton.TButton",
-                font=("Segoe UI", 10, "bold"),
-                padding=6,
-                relief="flat")
-style.map("RoundedButton.TButton",
-          background=[('active', '#dbeafe')],
-          relief=[('pressed', 'flat')],
-          foreground=[('disabled', '#888')])
+# === Conteneur principal ===
+frame = ctk.CTkFrame(master=root, corner_radius=20, fg_color="#f4f4f4")
+frame.place(relx=0.5, rely=0.5, anchor="center")
 
-# === Contenu sur le canvas (dans la "fenêtre")
-panel = tk.Frame(canvas, bg="#ffffff")
+ctk.CTkLabel(frame, text="Choisissez une action à exécuter :",
+             font=("Segoe UI", 15)).pack(pady=(15, 5))
 
-tk.Label(panel, text="Choisissez une action à exécuter :", font=("Segoe UI", 12, "bold"), bg="#ffffff").pack(pady=(10, 5))
+combo_var = ctk.StringVar()
+combo = ttk.Combobox(frame, textvariable=combo_var,
+                     values=choix_possibles, width=45)
+combo.pack(pady=(0, 15))
+combo.bind("<KeyRelease>", filtrer_options)
 
-combo = ttk.Combobox(panel, state="readonly", width=38, font=("Segoe UI", 10))
-combo['values'] = [
-    "Suivi des imputations non soumises",
-    "Suivi du TACE",
-    "Suivi des réestimations non soumises",
-    "Check imputations"
-]
-combo.pack()
-
-# 📅 Date
-frame_dates = tk.Frame(panel, bg="#ffffff")
-frame_dates.pack(pady=15)
-
+# === Date ===
 now = datetime.datetime.now()
-mois_var = tk.StringVar(value=f"{now.month:02d}")
-annee_var = tk.StringVar(value=str(now.year))
+mois_var = ctk.StringVar(value=f"{now.month:02d}")
+annee_var = ctk.StringVar(value=str(now.year))
 
-tk.Label(frame_dates, text="Mois :", bg="#ffffff").grid(row=0, column=0, padx=5)
-ttk.Combobox(frame_dates, textvariable=mois_var, width=5, state="readonly",
-             values=[f"{i:02d}" for i in range(1, 13)]).grid(row=0, column=1, padx=5)
+date_frame = ctk.CTkFrame(master=frame, fg_color="transparent")
+date_frame.pack(pady=5)
 
-tk.Label(frame_dates, text="Année :", bg="#ffffff").grid(row=0, column=2, padx=5)
-ttk.Combobox(frame_dates, textvariable=annee_var, width=6, state="readonly",
-             values=[str(now.year + i) for i in range(-2, 3)]).grid(row=0, column=3, padx=5)
+ctk.CTkLabel(date_frame, text="Mois :", font=(
+    "Segoe UI", 12)).grid(row=0, column=0, padx=10)
+ctk.CTkComboBox(date_frame, width=60, variable=mois_var, values=[
+                f"{i:02d}" for i in range(1, 13)]).grid(row=0, column=1)
 
-ttk.Button(panel, text="🚀 Lancer", style="RoundedButton.TButton", command=executer).pack(pady=5)
+ctk.CTkLabel(date_frame, text="Année :", font=(
+    "Segoe UI", 12)).grid(row=0, column=2, padx=10)
+ctk.CTkComboBox(date_frame, width=80, variable=annee_var, values=[
+                str(now.year + i) for i in range(-2, 3)]).grid(row=0, column=3)
 
-canvas.create_window(w//2, h//2, window=panel)
+# === Bouton Lancer ===
+ctk.CTkButton(frame, text="🚀 Lancer", width=120, height=36, corner_radius=10, font=(
+    "Segoe UI", 12, "bold"), command=executer).pack(pady=20)
 
 root.mainloop()
