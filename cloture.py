@@ -96,14 +96,17 @@ def executer():
 # === Fenêtre principale ===
 root = ctk.CTk()
 root.title("Update clôture details")
+root.geometry("520x370")
+root.resizable(False, False)
 
-# Centrer la fenêtre à l'écran
+# Centrage universel (portable/fixe/DPI)
+root.update_idletasks()
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
-x = int((screen_width / 2) - (520 / 2))
-y = int((screen_height / 2) - (370 / 2))
-root.geometry(f"520x370+{x}+{y}")
-root.resizable(False, False)
+x = int((screen_width - 520) / 2)
+y = int((screen_height - 370) / 2)
+root.geometry(f"+{x}+{y}")
+
 
 # === Image de fond avec overlay ===
 w, h = 520, 370
