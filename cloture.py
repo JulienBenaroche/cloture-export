@@ -1,25 +1,15 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
-from PIL import Image, ImageTk, ImageDraw
-import threading
 import datetime
-import os
-import sys
+import threading
 import Scraping
-from customtkinter import CTkImage
 
-# Apparence générale
-ctk.set_appearance_mode("system")
-ctk.set_default_color_theme("blue")
+# Apparence sombre et thème moderne
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")  # "dark-blue", "green", etc.
 
-# === PyInstaller-friendly path ===
-def resource_path(relative_path):
-    if getattr(sys, 'frozen', False):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-# === Options disponibles ===
+# === Fonctions générales ===
 choix_possibles = [
     "Suivi des imputations non soumises",
     "Suivi du TACE",
@@ -27,14 +17,27 @@ choix_possibles = [
     "Check imputations"
 ]
 
-# === Fonctions ===
+
 def filtrer_options(event):
     current_text = combo_var.get()
-    filtered = [option for option in choix_possibles if current_text.lower() in option.lower()]
-    combo.configure(values=filtered if filtered else choix_possibles)
+    filtered = [opt for opt in choix_possibles if current_text.lower()
+                in opt.lower()]
+    combo.configure(values=filtered or choix_possibles)
+
+
+def log(message):
+    print(message)  # pour debug console
+    log_box.configure(state="normal")
+    log_box.insert("end", f"{message}\n")
+    log_box.see("end")
+    log_box.configure(state="disabled")
+
 
 def lancer_script(choix, mois, annee):
     try:
+        log("Authentification en attente...")
+
+        Scraping.log = log  # injecte la fonction log()
         Scraping.lancer_scraping(choix, mois, annee)
 
         if choix == "Suivi des imputations non soumises":
@@ -48,16 +51,22 @@ def lancer_script(choix, mois, annee):
         else:
             raise ValueError("Choix non reconnu")
 
+        log("Traitement en cours...")
+
         chemin_fichier = module.executer(mois, annee)
 
         if not chemin_fichier or chemin_fichier == "non":
-            messagebox.showerror("Échec", "❌ Aucun fichier généré. Vérifiez les données.")
+            log("❌ Aucun fichier généré.")
+            messagebox.showerror("Échec", "❌ Aucun fichier généré.")
             return
 
-        messagebox.showinfo("Succès", f"✅ Succès !\n\n📄 Fichier : {chemin_fichier}")
+        log("✅ Fichier généré avec succès.")
+        messagebox.showinfo("Succès", f"✅ Fichier généré :\n{chemin_fichier}")
 
     except Exception as e:
-        messagebox.showerror("Erreur", f"❌ Une erreur est survenue :\n{e}")
+        log(f"❌ Erreur : {e}")
+        messagebox.showerror("Erreur", f"❌ Erreur :\n{e}")
+
 
 def executer():
     choix = combo_var.get()
@@ -65,77 +74,68 @@ def executer():
     annee = annee_var.get()
 
     if choix not in choix_possibles:
-        messagebox.showwarning("Attention", "Choix invalide. Veuillez sélectionner une option valide.")
+        messagebox.showwarning("Attention", "Choix invalide.")
         return
 
     if choix != "Check imputations" and (not mois or not annee):
-        messagebox.showwarning("Attention", "Veuillez remplir le mois et l'année.")
+        messagebox.showwarning(
+            "Attention", "Veuillez renseigner mois et année.")
         return
 
-    threading.Thread(target=lancer_script, args=(choix, mois, annee), daemon=True).start()
+    threading.Thread(target=lancer_script, args=(
+        choix, mois, annee), daemon=True).start()
+
 
 # === Fenêtre principale ===
 root = ctk.CTk()
-root.title("Update clôture details")
+root.title("Update Clôture")
+root.geometry("720x460")
+root.resizable(False, False)
 
-# Taille adaptative
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-app_width = int(screen_width * 0.4)
-app_height = int(screen_height * 0.45)
-root.geometry(f"{app_width}x{app_height}")
-x = (screen_width - app_width) // 2
-y = (screen_height - app_height) // 2
-root.geometry(f"{app_width}x{app_height}+{x}+{y}")
-root.minsize(520, 370)
+# === Cadre principal ===
+main_frame = ctk.CTkFrame(root)
+main_frame.pack(expand=True, fill="both", padx=20, pady=20)
 
-# === Image de fond ===
-background_path = resource_path("background.jpg")
-if not os.path.exists(background_path):
-    messagebox.showerror("Erreur", f"Image de fond introuvable : {background_path}")
-    root.destroy()
-    exit()
+# === Titre ===
+ctk.CTkLabel(main_frame, text="Choisissez une action :",
+             font=("Roboto", 18)).pack(pady=(20, 10))
 
-try:
-    resample = Image.Resampling.LANCZOS
-except AttributeError:
-    resample = Image.LANCZOS
-
-bg_image = Image.open(background_path).resize((app_width, app_height), resample)
-overlay = Image.new("RGBA", bg_image.size)
-draw = ImageDraw.Draw(overlay)
-draw.rounded_rectangle([(app_width*0.05, app_height*0.1), (app_width*0.95, app_height*0.9)], radius=25, fill=(245, 245, 245, 230))
-combined = Image.alpha_composite(bg_image.convert("RGBA"), overlay)
-bg_photo = CTkImage(light_image=combined, size=(app_width, app_height))
-bg_label = ctk.CTkLabel(master=root, image=bg_photo, text="")
-bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-
-# === Conteneur principal ===
-frame = ctk.CTkFrame(master=root, corner_radius=20, fg_color="#f4f4f4")
-frame.place(relx=0.5, rely=0.5, anchor="center")
-
-ctk.CTkLabel(frame, text="Choisissez une action à exécuter :", font=("Segoe UI", 16)).pack(pady=(20, 8))
-
+# === Choix d'action ===
 combo_var = ctk.StringVar()
-combo = ctk.CTkComboBox(frame, variable=combo_var, values=choix_possibles, width=app_width * 0.5)
-combo.pack(pady=(0, 15))
+combo = ctk.CTkComboBox(main_frame, variable=combo_var,
+                        values=choix_possibles, width=300, font=("Roboto", 13))
+combo.pack(pady=(0, 10))
 combo.bind("<KeyRelease>", filtrer_options)
 
-# === Choix de date ===
+# === Sélection date ===
 now = datetime.datetime.now()
 mois_var = ctk.StringVar(value=f"{now.month:02d}")
 annee_var = ctk.StringVar(value=str(now.year))
 
-date_frame = ctk.CTkFrame(master=frame, fg_color="transparent")
-date_frame.pack(pady=5)
+date_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+date_frame.pack(pady=10)
 
-ctk.CTkLabel(date_frame, text="Mois :", font=("Segoe UI", 13)).grid(row=0, column=0, padx=10)
-ctk.CTkComboBox(date_frame, width=70, variable=mois_var, values=[f"{i:02d}" for i in range(1, 13)]).grid(row=0, column=1)
+ctk.CTkLabel(date_frame, text="Mois", font=(
+    "Roboto", 13)).grid(row=0, column=0, padx=10)
+ctk.CTkComboBox(date_frame, width=80, variable=mois_var,
+                values=[f"{i:02d}" for i in range(1, 13)],
+                font=("Roboto", 13)).grid(row=0, column=1)
 
-ctk.CTkLabel(date_frame, text="Année :", font=("Segoe UI", 13)).grid(row=0, column=2, padx=10)
-ctk.CTkComboBox(date_frame, width=90, variable=annee_var, values=[str(now.year + i) for i in range(-2, 3)]).grid(row=0, column=3)
+ctk.CTkLabel(date_frame, text="Année", font=(
+    "Roboto", 13)).grid(row=0, column=2, padx=10)
+ctk.CTkComboBox(date_frame, width=100, variable=annee_var,
+                values=[str(now.year + i) for i in range(-2, 3)],
+                font=("Roboto", 13)).grid(row=0, column=3)
 
-# === Bouton ===
-ctk.CTkButton(frame, text="🚀 Lancer", width=140, height=38, font=("Segoe UI", 13, "bold"), command=executer).pack(pady=25)
+# === Bouton d'exécution ===
+ctk.CTkButton(main_frame, text="🚀 Lancer", width=150,
+              height=40, command=executer, font=("Roboto", 14, "bold")).pack(pady=25)
 
+# === Zone de log dynamique ===
+log_box = ctk.CTkTextbox(main_frame, height=100, width=500,
+                         corner_radius=10, font=("Roboto", 12))
+log_box.pack(pady=(0, 10))
+log_box.configure(state="disabled")
+
+# === Lancement ===
 root.mainloop()
