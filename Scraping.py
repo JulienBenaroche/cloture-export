@@ -111,9 +111,11 @@
 #         print(f"✅ Script terminé en {duration}s")
 
 
-
-
-import os, sys, time, glob, traceback
+import os
+import sys
+import time
+import glob
+import traceback
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -123,8 +125,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from openpyxl import Workbook
 
+log = print  # sera redéfini par cloture.py
+
+
 def attendre_telechargement_termine(download_dir, timeout=60):
-    print("⏳ Attente de fin de téléchargement...")
+    log("⏳ Attente de fin de téléchargement...")
     for _ in range(timeout):
         cr_files = glob.glob(os.path.join(download_dir, "*.crdownload"))
         xlsx_files = glob.glob(os.path.join(download_dir, "*.xlsx"))
@@ -132,6 +137,7 @@ def attendre_telechargement_termine(download_dir, timeout=60):
             return xlsx_files[0]
         time.sleep(1)
     raise TimeoutError("⛔️ Temps dépassé : le fichier n'a pas été téléchargé.")
+
 
 def lancer_scraping(choix, mois, annee):
     email = "julien.benaroche@wavestone.com"
@@ -146,9 +152,11 @@ def lancer_scraping(choix, mois, annee):
     download_dir = os.path.join(base_path, "extract")
     os.makedirs(download_dir, exist_ok=True)
 
-    chromedriver_path = os.path.join(base_path, "chromedriver-win64", "chromedriver.exe")
+    chromedriver_path = os.path.join(
+        base_path, "chromedriver-win64", "chromedriver.exe")
     if not os.path.exists(chromedriver_path):
-        raise FileNotFoundError(f"chromedriver.exe introuvable : {chromedriver_path}")
+        raise FileNotFoundError(
+            f"chromedriver.exe introuvable : {chromedriver_path}")
 
     options = Options()
     options.add_argument("--start-maximized")
@@ -165,7 +173,7 @@ def lancer_scraping(choix, mois, annee):
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
-        print("🌐 Ouverture de Wavekeeper...")
+        log("🌐 Ouverture de Wavekeeper...")
         driver.get("https://wavekeeper.wavestone-app.com/web#cids=1&action=menu")
 
         try:
@@ -177,65 +185,72 @@ def lancer_scraping(choix, mois, annee):
             WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "idSIButton9"))
             ).click()
-            print("🔐 Email saisi, validation...")
+            log("🔐 Email saisi, validation...")
         except:
-            print("🔄 Déjà connecté ou champ non affiché.")
+            log("🔄 Déjà connecté ou champ non affiché.")
 
         WebDriverWait(driver, 300).until(
-            EC.presence_of_element_located((By.XPATH, "//div[text()='Timesheets']"))
+            EC.presence_of_element_located(
+                (By.XPATH, "//div[text()='Timesheets']"))
         )
-        print("✅ Connexion réussie")
+        log("✅ Connexion réussie")
 
-        print("➡️ Accès à la page calendrier.event...")
-        driver.get("https://wavekeeper.wavestone-app.com/web#action=240&model=calendar.event&view_type=list&menu_id=170")
+        log("➡️ Accès à la page calendrier.event...")
+        driver.get(
+            "https://wavekeeper.wavestone-app.com/web#action=240&model=calendar.event&view_type=list&menu_id=170")
 
-        print("👀 Attente du tableau événements")
+        log("👀 Attente du tableau événements")
         try:
             WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.XPATH, "//th//span[text()='Attendees']"))
+                EC.presence_of_element_located(
+                    (By.XPATH, "//th//span[text()='Attendees']"))
             )
-            print("📄 Tableau chargé ✅")
+            log("📄 Tableau chargé ✅")
         except Exception:
-            print("❌ Le tableau n’a jamais été détecté")
+            log("❌ Le tableau n’a jamais été détecté")
             with open("debug_calendar_page.html", "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
             raise RuntimeError("🚨 Échec : tableau non détecté")
 
-        print("🚩 Je suis juste avant le bloc de clic Export")
+        log("🚩 Je suis juste avant le bloc de clic Export")
 
         try:
-            print("🔍 Recherche du bouton Export...")
+            log("🔍 Recherche du bouton Export...")
             export_btn = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "button.o_list_export_xlsx"))
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "button.o_list_export_xlsx"))
             )
-            print("🟢 Bouton détecté dans le DOM")
+            log("🟢 Bouton détecté dans le DOM")
 
-            driver.execute_script("arguments[0].scrollIntoView(true);", export_btn)
+            driver.execute_script(
+                "arguments[0].scrollIntoView(true);", export_btn)
             time.sleep(1)
 
             ActionChains(driver).move_to_element(export_btn).click().perform()
-            print("✅ CLIC EXPORT effectué avec succès")
+            log("✅ CLIC EXPORT effectué avec succès")
 
-        except Exception as e:
-            print("❌ ÉCHEC DU CLIC sur Export")
-            traceback.print_exc()
+        except Exception:
+            log("❌ ÉCHEC DU CLIC sur Export")
+            log(traceback.format_exc())
             with open("debug_export_page.html", "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
             raise RuntimeError("🚨 Le bouton Export n’a pas pu être cliqué")
 
         try:
             fichier = attendre_telechargement_termine(download_dir)
-            print(f"📄 Fichier téléchargé : {fichier}")
+            log(f"📄 Fichier téléchargé : {fichier}")
         except:
             wb = Workbook()
-            empty_file_path = os.path.join(download_dir, f"vide_{mois}_{annee}.xlsx")
+            empty_file_path = os.path.join(
+                download_dir, f"vide_{mois}_{annee}.xlsx")
             wb.save(empty_file_path)
-            print(f"📄 Aucun fichier détecté. Fichier vide créé : {empty_file_path}")
+            log(
+                f"📄 Aucun fichier détecté. Fichier vide créé : {empty_file_path}")
 
         time.sleep(10)
 
     finally:
-        print("🧪 Fenêtre Chrome laissée ouverte pour observation (driver.quit() désactivé)")
+        log("🧪 Fenêtre Chrome laissée ouverte pour observation (driver.quit() désactivé)")
         driver.quit()
         duration = round(time.time() - start_time, 2)
-        print(f"✅ Script terminé en {duration}s")
+        log(f"✅ Script terminé en {duration}s")
