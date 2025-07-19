@@ -8,6 +8,7 @@ import datetime
 import os
 import sys
 import Scraping
+from customtkinter import CTkImage
 
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("blue")
@@ -124,8 +125,7 @@ draw = ImageDraw.Draw(overlay)
 draw.rounded_rectangle([(40, 40), (480, 330)],
                        radius=25, fill=(245, 245, 245, 230))
 combined = Image.alpha_composite(bg_image.convert("RGBA"), overlay)
-bg_photo = ImageTk.PhotoImage(combined)
-
+bg_photo = CTkImage(light_image=combined, size=(w, h))
 bg_label = ctk.CTkLabel(master=root, image=bg_photo, text="")
 bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
