@@ -167,4 +167,16 @@ ctk.CTkComboBox(date_frame, width=80, variable=annee_var, values=[
 ctk.CTkButton(frame, text="🚀 Lancer", width=120, height=36, corner_radius=10, font=(
     "Segoe UI", 12, "bold"), command=executer).pack(pady=20)
 
+# Forcer la fenêtre à se calculer complètement
+root.update_idletasks()
+
+# Obtenir la vraie taille une fois le layout chargé
+width = root.winfo_width()
+height = root.winfo_height()
+
+# Recalculer le centrage avec la taille réelle
+x = (root.winfo_screenwidth() // 2) - (width // 2)
+y = (root.winfo_screenheight() // 2) - (height // 2)
+root.geometry(f"{width}x{height}+{x}+{y}")
+
 root.mainloop()
