@@ -1,256 +1,226 @@
-# # scraping.py
-
-# import os, sys, time, glob, traceback
-# from selenium import webdriver
-# from selenium.webdriver.chrome.service import Service
-# from selenium.webdriver.chrome.options import Options
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
-# from openpyxl import Workbook
-
-# def attendre_cliquable(driver, by, value, timeout=15):
-#     """Attend qu'un élément soit cliquable, sinon lève une erreur"""
-#     return WebDriverWait(driver, timeout).until(EC.element_to_be_clickable((by, value)))
-
-# def lancer_scraping(choix, mois, annee):
-#     email="julien.benaroche@wavestone.com"
-#     start_time = time.time()
-#     sys.stdout.reconfigure(encoding='utf-8')
-
-#     # Définir le chemin de base
-#     if getattr(sys, 'frozen', False):
-#         base_path = sys._MEIPASS
-#     else:
-#         base_path = os.path.dirname(os.path.abspath(__file__))
-
-#     # Préparer dossier extract
-#     download_dir = os.path.join(base_path, "extract")
-#     os.makedirs(download_dir, exist_ok=True)
-
-#     # Vérifier que le chromedriver est bien là
-#     chromedriver_path = os.path.join(base_path, "chromedriver-win64", "chromedriver.exe")
-#     if not os.path.exists(chromedriver_path):
-#         raise FileNotFoundError(f"chromedriver.exe introuvable.\nChemin : {chromedriver_path}")
-
-#     # Config Chrome
-#     options = Options()
-#     options.add_argument("--start-maximized")
-#     prefs = {
-#         "download.default_directory": download_dir,
-#         "download.prompt_for_download": False,
-#         "directory_upgrade": True,
-#         "safebrowsing.enabled": True
-#     }
-#     options.add_experimental_option("prefs", prefs)
-
-#     # Lancer Chrome
-#     service = Service(chromedriver_path)
-#     driver = webdriver.Chrome(service=service, options=options)
-
-#     try:
-#         print("🌐 Ouverture de Wavekeeper...")
-#         driver.get("https://wavekeeper.wavestone-app.com/web#cids=1&action=menu")
-
-#         # Étape de connexion
-#         try:
-#             email_field = attendre_cliquable(driver, By.NAME, "loginfmt", timeout=15)
-#             email_field.clear()
-#             email_field.send_keys(email)
-
-#             next_btn = attendre_cliquable(driver, By.ID, "idSIButton9", timeout=10)
-#             next_btn.click()
-#             print("🔐 Email saisi, validation...")
-#         except Exception:
-#             print("🔄 Déjà connecté ou champ non affiché.")
-
-#         # Attend la présence de l’accueil
-#         WebDriverWait(driver, 300).until(
-#             EC.presence_of_element_located((By.XPATH, "//div[text()='Timesheets']"))
-#         )
-#         print("✅ Connexion réussie")
-
-#         # Aller à la page des timesheets
-#         print("➡️ Accès à la page d'export...")
-#         driver.get("https://wavekeeper.wavestone-app.com/web#menu_id=216&action=1872")
-
-#         # Activer la vue liste (si possible)
-#         try:
-#             list_btn = attendre_cliquable(driver, By.CSS_SELECTOR, "button.oi-view-list", timeout=10)
-#             list_btn.click()
-#             print("👁️ Vue liste activée")
-#         except:
-#             print("⚠️ Vue liste déjà active ou non trouvée")
-
-#         # Cliquer sur "Exporter"
-#         try:
-#             export_btn = attendre_cliquable(driver, By.CLASS_NAME, "o_list_export_xlsx", timeout=10)
-#             export_btn.click()
-#             print("📥 Export déclenché")
-#         except:
-#             print("❌ Échec export")
-#             traceback.print_exc()
-#             with open("debug_export_page.html", "w", encoding="utf-8") as f:
-#                 f.write(driver.page_source)
-
-#         # Vérifier le fichier téléchargé
-#         WebDriverWait(driver, 15).until(lambda d: len(glob.glob(os.path.join(download_dir, "*.xlsx"))) > 0)
-#         downloaded_files = glob.glob(os.path.join(download_dir, "*.xlsx"))
-#         if not downloaded_files:
-#             # Crée un fichier vide si rien n’a été téléchargé
-#             wb = Workbook()
-#             empty_file_path = os.path.join(download_dir, f"vide_{mois}_{annee}.xlsx")
-#             wb.save(empty_file_path)
-#             print(f"📄 Aucun fichier téléchargé. Fichier vide généré : {empty_file_path}")
-#         else:
-#             print(f"📄 Fichier téléchargé : {downloaded_files[0]}")
-
-#     finally:
-#         driver.quit()
-#         duration = round(time.time() - start_time, 2)
-#         print(f"✅ Script terminé en {duration}s")
-
-
-import os
-import sys
-import time
-import glob
-import traceback
+import os, sys, time, glob
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-from openpyxl import Workbook
+from selenium.webdriver import ActionChains
+import shutil
 
-log = print  # sera redéfini par cloture.py
 
+def attendre_cliquable(driver, by, value, timeout=15):
+    return WebDriverWait(driver, timeout).until(EC.element_to_be_clickable((by, value)))
 
 def attendre_telechargement_termine(download_dir, timeout=60):
-    log("⏳ Attente de fin de téléchargement...")
+    print("⏳ Attente de fin de téléchargement...")
     for _ in range(timeout):
         cr_files = glob.glob(os.path.join(download_dir, "*.crdownload"))
         xlsx_files = glob.glob(os.path.join(download_dir, "*.xlsx"))
         if not cr_files and xlsx_files:
+            print("✅ Fichier téléchargé :", os.path.basename(xlsx_files[0]))
             return xlsx_files[0]
         time.sleep(1)
-    raise TimeoutError("⛔️ Temps dépassé : le fichier n'a pas été téléchargé.")
-
+    raise TimeoutError("❌ Téléchargement non terminé après 60s.")
 
 def lancer_scraping(choix, mois, annee):
     email = "julien.benaroche@wavestone.com"
-    start_time = time.time()
     sys.stdout.reconfigure(encoding='utf-8')
+    start_time = time.time()
 
-    if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
-    download_dir = os.path.join(base_path, "extract")
-    os.makedirs(download_dir, exist_ok=True)
-
-    chromedriver_path = os.path.join(
-        base_path, "chromedriver-win64", "chromedriver.exe")
+    base_path = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    chromedriver_path = os.path.join(base_path, "chromedriver-win64", "chromedriver.exe")
     if not os.path.exists(chromedriver_path):
-        raise FileNotFoundError(
-            f"chromedriver.exe introuvable : {chromedriver_path}")
+        raise FileNotFoundError(f"chromedriver.exe introuvable : {chromedriver_path}")
 
-    options = Options()
-    options.add_argument("--start-maximized")
-    options.add_experimental_option("detach", True)
+    dossier_extract = os.path.join(
+    os.path.expanduser("~"),
+    "Wavestone",
+    "WO - CTO - CDM - Clôture",
+    "extract"
+    )
+
+    os.makedirs(dossier_extract, exist_ok=True)
+
     prefs = {
-        "download.default_directory": download_dir,
+        "download.default_directory": dossier_extract,
         "download.prompt_for_download": False,
         "directory_upgrade": True,
         "safebrowsing.enabled": True
     }
+
+    options = Options()
+    options.add_argument("--start-maximized")
+    options.add_experimental_option("detach", True)
     options.add_experimental_option("prefs", prefs)
 
     service = Service(chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
-        log("🌐 Ouverture de Wavekeeper...")
+        print("🌐 Ouverture de Wavekeeper...")
         driver.get("https://wavekeeper.wavestone-app.com/web#cids=1&action=menu")
 
         try:
-            email_field = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.NAME, "loginfmt"))
-            )
+            email_field = attendre_cliquable(driver, By.NAME, "loginfmt")
             email_field.clear()
             email_field.send_keys(email)
-            WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.ID, "idSIButton9"))
-            ).click()
-            log("🔐 Email saisi, validation...")
+            attendre_cliquable(driver, By.ID, "idSIButton9").click()
+            print("🔐 Email saisi, validation...")
         except:
-            log("🔄 Déjà connecté ou champ non affiché.")
+            print("🔄 Déjà connecté ou champ non affiché.")
 
-        WebDriverWait(driver, 300).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//div[text()='Timesheets']"))
+        WebDriverWait(driver, 60).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(text(),'Timesheets')]"))
         )
-        log("✅ Connexion réussie")
+        print("✅ Connexion réussie")
 
-        log("➡️ Accès à la page calendrier.event...")
-        driver.get(
-            "https://wavekeeper.wavestone-app.com/web#action=240&model=calendar.event&view_type=list&menu_id=170")
+        print("➡️ Accès à la page Timesheets (menu_id=216)...")
+        driver.get("https://wavekeeper.wavestone-app.com/web#menu_id=216&action=1872")
 
-        log("👀 Attente du tableau événements")
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "nav.o_main_navbar"))
+        )
+
         try:
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//th//span[text()='Attendees']"))
+            print("➡️ Ouverture du menu 'Review'...")
+            review_button = attendre_cliquable(driver, By.CSS_SELECTOR, "button.dropdown-toggle[title='Review']")
+            driver.execute_script("arguments[0].scrollIntoView(true);", review_button)
+            review_button.click()
+            print("✅ Bouton 'Review' cliqué.")
+        except Exception as e:
+            print(f"❌ Erreur sur 'Review' : {e}")
+            return
+
+        try:
+            print("➡️ Clic sur 'Team Timesheets'...")
+            team_link = attendre_cliquable(driver, By.XPATH, "//a[@href='#menu_id=1063&action=1911' and contains(text(),'Team Timesheets')]")
+            team_link.click()
+            print("✅ Lien 'Team Timesheets' cliqué.")
+        except Exception as e:
+            print(f"❌ Erreur au clic sur 'Team Timesheets' : {e}")
+            return
+
+        print("⏳ Attente de la page Team Timesheets (grille)...")
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.XPATH, "//th[contains(text(),'Day(s)')]"))
+        )
+        print("📊 Grille Team Timesheets chargée avec succès.")
+
+        try:
+            print("🧹 Suppression du filtre actif...")
+            bouton_supprimer_filtre = attendre_cliquable(driver, By.CSS_SELECTOR, "i.o_facet_remove.oi.oi-close.btn.btn-link")
+            bouton_supprimer_filtre.click()
+            print("✅ Filtre supprimé.")
+        except Exception as e:
+            print(f"❌ Impossible de supprimer le filtre : {e}")
+
+        try:
+            print("⭐ Ouverture du menu 'Favorites'...")
+            bouton_favorites = attendre_cliquable(driver, By.XPATH, "//button[.//span[text()='Favorites']]")
+            bouton_favorites.click()
+            print("✅ Menu 'Favorites' ouvert.")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'ouverture du menu 'Favorites' : {e}")
+
+        try:
+            print("🎯 Sélection du filtre 'CTO non soumises'...")
+            filtre_cto = attendre_cliquable(driver, By.XPATH, "//span[contains(text(), 'CTO non soumises') and not(ancestor::i)]")
+            filtre_cto.click()
+            print("✅ Filtre 'CTO non soumises' sélectionné.")
+        except Exception as e:
+            print(f"❌ Impossible de sélectionner le filtre : {e}")
+
+        try:
+            print("🖱️ Clic humain simulé avec ActionChains sur la case 'Tout sélectionner'...")
+            checkbox = attendre_cliquable(driver, By.ID, "checkbox-comp-1")
+            ActionChains(driver).move_to_element(checkbox).click().perform()
+
+            print("⏳ Attente que les lignes restent cochées après le clic...")
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("""
+                    const boxes = document.querySelectorAll('input[type="checkbox"][id^="checkbox-"]:not(#checkbox-comp-1)');
+                    return Array.from(boxes).length > 0 && Array.from(boxes).every(b => b.checked);
+                """)
             )
-            log("📄 Tableau chargé ✅")
-        except Exception:
-            log("❌ Le tableau n’a jamais été détecté")
-            with open("debug_calendar_page.html", "w", encoding="utf-8") as f:
-                f.write(driver.page_source)
-            raise RuntimeError("🚨 Échec : tableau non détecté")
+            print("✅ Toutes les lignes sont restées sélectionnées ✅")
+        except Exception as e:
+            print(f"❌ Échec du clic ActionChains ou de la vérification : {e}")
 
-        log("🚩 Je suis juste avant le bloc de clic Export")
 
         try:
-            log("🔍 Recherche du bouton Export...")
-            export_btn = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "button.o_list_export_xlsx"))
-            )
-            log("🟢 Bouton détecté dans le DOM")
+            print("🔁 Clic sur le lien 'Select all XXX' pour tout sélectionner (même hors écran)...")
+            bouton_select_all = attendre_cliquable(driver, By.CSS_SELECTOR, "a.o_list_select_domain")
+            ActionChains(driver).move_to_element(bouton_select_all).pause(0.3).click().perform()
+            print("✅ Tous les enregistrements correspondants sélectionnés.")
+        except Exception as e:
+            print(f"❌ Erreur lors du clic sur 'Select all' : {e}")
 
-            driver.execute_script(
-                "arguments[0].scrollIntoView(true);", export_btn)
-            time.sleep(1)
-
-            ActionChains(driver).move_to_element(export_btn).click().perform()
-            log("✅ CLIC EXPORT effectué avec succès")
-
-        except Exception:
-            log("❌ ÉCHEC DU CLIC sur Export")
-            log(traceback.format_exc())
-            with open("debug_export_page.html", "w", encoding="utf-8") as f:
-                f.write(driver.page_source)
-            raise RuntimeError("🚨 Le bouton Export n’a pas pu être cliqué")
 
         try:
-            fichier = attendre_telechargement_termine(download_dir)
-            log(f"📄 Fichier téléchargé : {fichier}")
-        except:
-            wb = Workbook()
-            empty_file_path = os.path.join(
-                download_dir, f"vide_{mois}_{annee}.xlsx")
-            wb.save(empty_file_path)
-            log(
-                f"📄 Aucun fichier détecté. Fichier vide créé : {empty_file_path}")
+            print("⚙️ Clic naturel simulé sur le bouton 'Action'...")
+            bouton_action = attendre_cliquable(driver, By.XPATH, "//button[.//span[text()='Action']]")
+            
+            # Scroll vers le bouton avec JS, attendre un petit délai, puis clic avec ActionChains
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", bouton_action)
+            time.sleep(0.5)
+            ActionChains(driver).move_to_element(bouton_action).pause(0.5).click().perform()
 
-        time.sleep(10)
+            print("✅ Bouton 'Action' cliqué de manière réaliste.")
+        except Exception as e:
+            print(f"❌ Erreur lors du clic sur le bouton Action : {e}")
+
+        try:
+            print("📦 Clic sur l'entrée 'Export' dans le menu Action...")
+            export_menu_item = attendre_cliquable(driver, By.XPATH, "//span[normalize-space(text())='Export' and contains(@class,'o_menu_item')]")
+            export_menu_item.click()
+            print("✅ Export déclenché.")
+        except Exception as e:
+            print(f"❌ Erreur lors du clic sur 'Export' : {e}")
+
+
+        from selenium.webdriver.support.ui import Select
+
+        try:
+            print("📋 Sélection du template 'Extract Taux de présence - NE PAS SUPPRIMER'...")
+            select_element = attendre_cliquable(driver, By.CSS_SELECTOR, "select.form-select.ms-4.o_exported_lists_select")
+            select = Select(select_element)
+            select.select_by_visible_text("Extract Taux de présence - NE PAS SUPPRIMER")
+            print("✅ Template sélectionné.")
+        except Exception as e:
+            print(f"❌ Erreur lors de la sélection du template : {e}")
+
+
+# test
+        from selenium.webdriver.support.ui import Select
+
+        try:
+            print("📋 Sélection du template 'CTO - relances' (comportement humain)...")
+            select_element = attendre_cliquable(driver, By.CSS_SELECTOR, "select.o_exported_lists_select")
+            select = Select(select_element)
+            select.select_by_visible_text("CTO - relances")
+            print("✅ Template 'CTO - relances' sélectionné.")
+        except Exception as e:
+            print(f"❌ Erreur lors de la sélection du template : {e}")
+
+        try:
+            print("📦 Clic humain sur le bouton 'Export'...")
+            bouton_export = attendre_cliquable(driver, By.CSS_SELECTOR, "button.o_select_button.btn.btn-primary")
+            actions = ActionChains(driver)
+            actions.move_to_element(bouton_export).pause(0.5).click().perform()
+            print("✅ Clic sur le bouton Export effectué.")
+
+            # ⏳ Attente du téléchargement
+            fichier_telecharge = attendre_telechargement_termine(dossier_extract)
+            print(f"📥 Fichier téléchargé : {fichier_telecharge}")
+
+        except Exception as e:
+            print(f"❌ Erreur lors du clic sur Export ou téléchargement : {e}")
+
+
+    except Exception as e:
+        print(f"❌ Erreur globale : {e}")
 
     finally:
-        log("🧪 Fenêtre Chrome laissée ouverte pour observation (driver.quit() désactivé)")
-        driver.quit()
         duration = round(time.time() - start_time, 2)
-        log(f"✅ Script terminé en {duration}s")
+        print(f"✅ Script terminé en {duration}s — Chrome reste ouvert.")

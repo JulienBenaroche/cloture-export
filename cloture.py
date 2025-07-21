@@ -4,6 +4,7 @@ from tkinter import messagebox
 import datetime
 import threading
 import Scraping
+import fusion
 
 # Apparence sombre et thème moderne
 ctk.set_appearance_mode("dark")
@@ -37,8 +38,12 @@ def lancer_script(choix, mois, annee):
     try:
         log("Authentification en attente...")
 
-        Scraping.log = log  # injecte la fonction log()
+        Scraping.log = log
         Scraping.lancer_scraping(choix, mois, annee)
+
+        # 💡 Appel du module de fusion si applicable
+        log("🔀 Fusion des fichiers si nécessaire...")
+        fusion.fusionner(choix, mois, annee)
 
         if choix == "Suivi des imputations non soumises":
             import suivi_imputation as module
@@ -52,6 +57,7 @@ def lancer_script(choix, mois, annee):
             raise ValueError("Choix non reconnu")
 
         log("Traitement en cours...")
+        
 
         chemin_fichier = module.executer(mois, annee)
 
@@ -60,7 +66,10 @@ def lancer_script(choix, mois, annee):
             messagebox.showerror("Échec", "❌ Aucun fichier généré.")
             return
 
-        log("✅ Fichier généré avec succès.")
+        # ✅ Ajoute ceci ici
+        fusion.fusionner(choix, mois, annee)
+
+        # log("✅ Fichier généré avec succès.")
         messagebox.showinfo("Succès", f"✅ Fichier généré :\n{chemin_fichier}")
 
     except Exception as e:
