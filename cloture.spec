@@ -5,7 +5,7 @@ a = Analysis(
     ['cloture.py'],
     pathex=[],
     binaries=[],
-    datas=[('extract', 'extract'), ('chromedriver-win64', 'chromedriver-win64')],
+    datas=[('chromedriver-win64', 'chromedriver-win64')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

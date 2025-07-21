@@ -201,16 +201,13 @@ def lancer_scraping(choix, mois, annee):
             except Exception as e:
                 print(f"❌ Erreur téléchargement : {e}")
 
-        else:
-            print(f"ℹ️ Aucun scraping requis pour le choix : {choix} — Connexion uniquement.")
-            return
-        
-
         # ================================
         # 💡 Comportement conditionnel selon le choix 2 eme fichier TACE
         # ================================
 
-        if choix == "Suivi du TACE Overrun":
+   
+        elif choix == "Suivi du TACE Overrun":
+
             print("coucou&")
             filtre_a_choisir = f"CTO - {mois}/{annee[-2:]}"  # ex : CTO - 06/25
 
@@ -365,7 +362,9 @@ def lancer_scraping(choix, mois, annee):
             return
 
 
-        if choix == "Suivi des imputations non soumises":
+        
+        elif choix == "Suivi des imputations non soumises":
+        
             print("➡️ Accès à la page Timesheets (menu_id=216)...")
             driver.get("https://wavekeeper.wavestone-app.com/web#menu_id=216&action=1872")
             WebDriverWait(driver, 10).until(

@@ -5,6 +5,7 @@ import datetime
 import threading
 import Scraping
 import fusion
+import os
 
 # Apparence sombre et thème moderne
 ctk.set_appearance_mode("dark")
@@ -36,6 +37,7 @@ def log(message):
 
 
 def lancer_script(choix, mois, annee):
+    log(f"📂 Home détecté : {os.path.expanduser('~')}")
     try:
         log("Authentification en attente...")
 

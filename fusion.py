@@ -29,6 +29,8 @@ def fusionner(choix, mois, annee):
         "WO - CTO - CDM - Clôture",
         "extract"
     )
+    print("🔍 Utilisateur courant :", os.getlogin())
+    print("📂 Home path utilisé :", os.path.expanduser("~"))
     os.makedirs(dossier_extract, exist_ok=True)
     print(f"📁 Dossier extract utilisé : {dossier_extract}")
 
