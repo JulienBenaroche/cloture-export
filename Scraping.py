@@ -75,8 +75,7 @@ def lancer_scraping(choix, mois, annee):
         print("✅ Connexion réussie")
 
 
-
-        if choix == "Suivi du TACE":
+        if choix == "Suivi du TACE Timesheets": 
             filtre_a_choisir = f"CTO - {mois}/{annee[-2:]}"  # ex : CTO - 06/25
 
             print("➡️ Accès à la page Timesheets analysis (menu_id=387)...")
@@ -204,6 +203,164 @@ def lancer_scraping(choix, mois, annee):
 
         else:
             print(f"ℹ️ Aucun scraping requis pour le choix : {choix} — Connexion uniquement.")
+            return
+        
+
+        # ================================
+        # 💡 Comportement conditionnel selon le choix 2 eme fichier TACE
+        # ================================
+
+        if choix == "Suivi du TACE Overrun":
+            print("coucou&")
+            filtre_a_choisir = f"CTO - {mois}/{annee[-2:]}"  # ex : CTO - 06/25
+
+            try:
+                print("📁 Accès à la page Kanban des projets TACE...")
+                driver.get("https://wavekeeper.wavestone-app.com/web#action=505&model=project.project&view_type=kanban&cids=1&menu_id=176")
+                WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.o_kanban_view"))
+                )
+                print("✅ Page Kanban chargée.")
+            except Exception as e:
+                print(f"❌ Erreur lors du chargement de la page Kanban : {e}")
+                return
+
+            try:
+                print("📄 Navigation vers la liste TACE...")
+                driver.get("https://wavekeeper.wavestone-app.com/web#action=507&model=exceed.reporting.service_line&view_type=list&cids=1&menu_id=383")
+
+                print("⏳ Attente du tableau OU du message vide...")
+                WebDriverWait(driver, 20).until(
+                    EC.any_of(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "table.o_list_view")),
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".o_view_nocontent"))
+                    )
+                )
+
+                print("⏳ Attente que la liste TACE soit bien rendue...")
+                WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.o_list_renderer"))
+                )
+                print("✅ Composant liste TACE détecté (DOM stable).")
+
+
+                print("✅ Liste TACE entièrement chargée.")
+            except Exception as e:
+                print(f"❌ Erreur lors de la navigation vers la liste TACE : {e}")
+                return
+
+            try:
+                print("⭐ Attente de visibilité du bouton 'Favorites'...")
+                bouton_favorites = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[.//span[text()='Favorites']]"))
+                )
+                bouton_favorites.click()
+                print("✅ Menu 'Favorites' ouvert.")
+            except Exception as e:
+                print(f"❌ Erreur à l'ouverture de 'Favorites' : {e}")
+
+            try:
+                print(f"🎯 Attente du filtre '{filtre_a_choisir}' dans la liste...")
+                xpath_filtre = f"//span[contains(text(), '{filtre_a_choisir}')]"
+                filtre_element = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.XPATH, xpath_filtre))
+                )
+                filtre_element.click()
+                try:
+                    print("⏳ Attente que les lignes soient rechargées après application du filtre...")
+                    WebDriverWait(driver, 15).until(
+                        lambda d: d.execute_script("""
+                            const lignes = document.querySelectorAll("table.o_list_view tbody tr");
+                            return lignes.length > 0;
+                        """)
+                    )
+                    print("✅ Lignes rechargées après filtre.")
+                except Exception as e:
+                    print(f"❌ Timeout d'attente du rechargement des lignes : {e}")
+
+                print(f"✅ Filtre '{filtre_a_choisir}' sélectionné.")
+            except Exception as e:
+                print(f"❌ Impossible de sélectionner le filtre '{filtre_a_choisir}' : {e}")
+            
+            try:
+                print("🖱️ Clic humain sur la case 'Tout sélectionner'...")
+                checkbox = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.ID, "checkbox-comp-1"))
+                )
+                ActionChains(driver).move_to_element(checkbox).pause(0.5).click().perform()
+                print("✅ Case 'Tout sélectionner' cochée.")
+            except Exception as e:
+                print(f"❌ Erreur lors du clic sur la case 'Tout sélectionner' : {e}")
+
+
+            #  action importante a discuter avec un filtre que doit creer Quentin pour voir si ca fonctionne    # 🔁 Clic humain sur "Select all XXX" 
+            # try:
+            #     print("🔁 Clic sur le lien 'Select all XXX' (TACE)...")
+            #     bouton_select_all = attendre_cliquable(driver, By.CSS_SELECTOR, "a.o_list_select_domain")
+            #     ActionChains(driver).move_to_element(bouton_select_all).pause(0.3).click().perform()
+            #     print("✅ Tous les enregistrements correspondants sélectionnés.")
+            # except Exception as e:
+            #     print(f"❌ Erreur lors du clic sur 'Select all' (TACE) : {e}")
+
+
+            # ⚙️ Clic humain sur le bouton 'Action'
+
+            try:
+                print("⚙️ Clic sur le bouton 'Action'...")
+                bouton_action = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[.//span[text()='Action']]"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", bouton_action)
+                ActionChains(driver).move_to_element(bouton_action).pause(0.5).click().perform()
+                print("✅ Bouton 'Action' cliqué.")
+            except Exception as e:
+                print(f"❌ Erreur lors du clic sur 'Action' : {e}")
+
+            # 📦 Clic humain sur l'entrée 'Export' dans le menu déroulant
+            try:
+                print("📦 Clic sur 'Export' dans le menu Action...")
+                bouton_export = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.XPATH, "//span[normalize-space(text())='Export' and contains(@class,'o_menu_item')]"))
+                )
+                ActionChains(driver).move_to_element(bouton_export).pause(0.4).click().perform()
+                print("✅ 'Export' sélectionné.")
+            except Exception as e:
+                print(f"❌ Erreur lors du clic sur 'Export' : {e}")
+
+            from selenium.webdriver.support.ui import Select
+
+            try:
+                print("📋 Sélection du template '0-Original view'...")
+                
+                # Attendre que le <select> soit cliquable
+                select_element = attendre_cliquable(driver, By.CSS_SELECTOR, "select.o_exported_lists_select")
+                
+                # Scroller vers l'élément pour s'assurer qu'il est visible
+                driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", select_element)
+                time.sleep(0.3)  # Pause pour le réalisme humain
+                
+                # Sélection par le texte visible
+                select = Select(select_element)
+                select.select_by_visible_text("0-Original view")
+
+                print("✅ Template '0-Original view' sélectionné avec succès.")
+            except Exception as e:
+                print(f"❌ Erreur lors de la sélection du template : {type(e).__name__} - {e}")
+      
+            try:
+                print("📥 Clic sur le bouton Export...")
+
+                # Attente et clic naturel sur le bouton Export
+                bouton_export = attendre_cliquable(driver, By.CSS_SELECTOR, "button.o_select_button.btn.btn-primary")
+                ActionChains(driver).move_to_element(bouton_export).pause(0.5).click().perform()
+
+                print("✅ Export lancé.")
+
+                # Attente du téléchargement dans le dossier prévu
+                fichier_telecharge = attendre_telechargement_termine(dossier_extract)
+                print(f"📥 Fichier téléchargé : {fichier_telecharge}")
+            except Exception as e:
+                print(f"❌ Erreur téléchargement : {e}")
 
             return
 

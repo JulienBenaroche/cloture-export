@@ -32,6 +32,11 @@ def fusionner(choix, mois, annee):
     os.makedirs(dossier_extract, exist_ok=True)
     print(f"📁 Dossier extract utilisé : {dossier_extract}")
 
+
+    # if choix == "Suivi du TACE Timesheets":
+    # if choix == "Suivi du TACE Overrun":
+    # if choix == "Check imputations":
+
     if choix == "Suivi des imputations non soumises":
         fichiers = get_x_fichiers_recents(dossier_extract, "*.xlsx", limit=2)
         if len(fichiers) < 2:

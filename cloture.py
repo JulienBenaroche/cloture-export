@@ -13,7 +13,8 @@ ctk.set_default_color_theme("blue")  # "dark-blue", "green", etc.
 # === Fonctions générales ===
 choix_possibles = [
     "Suivi des imputations non soumises",
-    "Suivi du TACE",
+    "Suivi du TACE Timesheets",
+    "Suivi du TACE Overrun",
     "Suivi des réestimations non soumises",
     "Check imputations"
 ]
@@ -47,7 +48,7 @@ def lancer_script(choix, mois, annee):
 
         if choix == "Suivi des imputations non soumises":
             import suivi_imputation as module
-        elif choix == "Suivi du TACE":
+        elif choix in ["Suivi du TACE Timesheets", "Suivi du TACE Overrun"]:
             import suivi_tace as module
         elif choix == "Suivi des réestimations non soumises":
             import suivi_reestimations as module
