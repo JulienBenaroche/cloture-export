@@ -16,9 +16,38 @@ choix_possibles = [
     "Suivi des imputations non soumises",
     "Suivi du TACE Timesheets",
     "Suivi du TACE Overrun",
-    "Suivi des réestimations non soumises",
-    "Check imputations"
+    # "Suivi des réestimations non soumises",
+    # "Check imputations"
 ]
+
+# 📁 Chemin vers le dossier 'extract'
+dossier_extract = os.path.join(
+    os.path.expanduser("~"),
+    "Wavestone",
+    "WO - CTO - CDM - Clôture",
+    "extract"
+)
+
+# ⚙️ Création du dossier s'il n'existe pas
+if not os.path.exists(dossier_extract):
+    try:
+        os.makedirs(dossier_extract)
+        print("📁 Dossier 'extract' créé car il n'existait pas.")
+    except Exception as e:
+        print(f"❌ Erreur lors de la création de 'extract' : {e}")
+else:
+    print("📁 Dossier 'extract' déjà existant. Nettoyage en cours...")
+    # 🧹 Vidage sécurisé du contenu du dossier
+    for fichier in os.listdir(dossier_extract):
+        chemin_fichier = os.path.join(dossier_extract, fichier)
+        try:
+            if os.path.isfile(chemin_fichier):
+                os.remove(chemin_fichier)
+                print(f"🗑️ Fichier supprimé : {fichier}")
+        except Exception as e:
+            print(f"❌ Impossible de supprimer {fichier} : {e}")
+
+
 
 
 def filtrer_options(event):
@@ -40,13 +69,15 @@ def lancer_script(choix, mois, annee):
     log(f"📂 Home détecté : {os.path.expanduser('~')}")
     try:
         log("Authentification en attente...")
+        # log(f"🚀 Lancement du traitement : {choix} ({mois}/{annee})")
 
-        Scraping.log = log
+        Scraping.set_logger(log)
+        fusion.set_logger(log)
         Scraping.lancer_scraping(choix, mois, annee)
 
         # 💡 Appel du module de fusion si applicable
-        log("🔀 Fusion des fichiers si nécessaire...")
-        fusion.fusionner(choix, mois, annee)
+        # log("🔀 Fusion des fichiers si nécessaire...")
+        # fusion.fusionner(choix, mois, annee)
 
         if choix == "Suivi des imputations non soumises":
             import suivi_imputation as module
@@ -71,6 +102,12 @@ def lancer_script(choix, mois, annee):
 
         # ✅ Ajoute ceci ici
         fusion.fusionner(choix, mois, annee)
+        # 🧼 Nettoyage final du dossier extract après création
+        for fichier in os.listdir(dossier_extract):
+            chemin_fichier = os.path.join(dossier_extract, fichier)
+            if os.path.isfile(chemin_fichier):
+                os.remove(chemin_fichier)
+                print(f"🗑️ Fichier final supprimé de extract : {fichier}")
 
         # log("✅ Fichier généré avec succès.")
         messagebox.showinfo("Succès", f"✅ Fichier généré :\n{chemin_fichier}")

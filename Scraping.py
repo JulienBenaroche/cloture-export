@@ -7,7 +7,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 import shutil
+import uuid
 
+log = print
+
+def set_logger(custom_log):
+    global log
+    log = custom_log
 
 def attendre_cliquable(driver, by, value, timeout=15):
     return WebDriverWait(driver, timeout).until(EC.element_to_be_clickable((by, value)))
@@ -25,6 +31,7 @@ def attendre_telechargement_termine(download_dir, timeout=60):
 
 def lancer_scraping(choix, mois, annee):
     email = "julien.benaroche@wavestone.com"
+    # email = "quentin.illy@wavestone.com"
     sys.stdout.reconfigure(encoding='utf-8')
     start_time = time.time()
 
@@ -57,7 +64,7 @@ def lancer_scraping(choix, mois, annee):
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
-        print("🌐 Ouverture de Wavekeeper...")
+        log("🌐 Ouverture de Wavekeeper...")
         driver.get("https://wavekeeper.wavestone-app.com/web#cids=1&action=menu")
 
         try:
@@ -65,14 +72,25 @@ def lancer_scraping(choix, mois, annee):
             email_field.clear()
             email_field.send_keys(email)
             attendre_cliquable(driver, By.ID, "idSIButton9").click()
-            print("🔐 Email saisi, validation...")
+            log("🔐 Email saisi, validation...")
         except:
             print("🔄 Déjà connecté ou champ non affiché.")
 
-        WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located((By.XPATH, "//div[contains(text(),'Timesheets')]"))
-        )
-        print("✅ Connexion réussie")
+
+        log("⏳ En attente que l'utilisateur soit connecté...")
+
+        while True:
+            try:
+                if not driver.window_handles:
+                    print("❌ Fenêtre Chrome fermée — fin du programme.")
+                    os.system("python cloture.py")
+                    sys.exit()
+
+                driver.find_element(By.XPATH, "//div[contains(text(),'Timesheets')]")
+                log("✅ Connexion détectée.")
+                break
+            except Exception:
+                time.sleep(1)
 
 
         if choix == "Suivi du TACE Timesheets": 
